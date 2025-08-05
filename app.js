@@ -3,7 +3,13 @@ const app = express();
 const cors = require("cors");
 const port = 3001;
 app.use(cors());
+
+
+const todoRoutes = require("./routes/todo");
+const { todos } = require("./routes/todo");
+
 app.use(express.json());
+app.use("/todos", todoRoutes);
 
 app.set("view engine", "ejs");
 
