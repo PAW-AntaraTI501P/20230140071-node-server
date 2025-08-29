@@ -3,8 +3,8 @@ const express = require("express");
 const app = express();
 const cors = require("cors");
 const port = process.env.PORT || 3001;
-const todoRoutes =require("./routes/tododb.js");
-const { todos } = require("./routes/todo.js");
+const todoRoutes = require("./routes/tododb.js");
+// const { todos } = require("./routes/todo.js");
 const db = require("./database/db");
 
 
@@ -17,9 +17,9 @@ app.set("view engine", "ejs");
 
 app.use("/todos", todoRoutes);
 
-app.get("/todos-data", (req, res) => {
-  res.json(todos);
-});
+// app.get("/todos-data", (req, res) => {
+//   res.json(todos);
+// });
 
 app.get("/todos-list", (req, res) => {
   res.render("todos-page", { todos: todos, layout: "layouts/main-layout" });
