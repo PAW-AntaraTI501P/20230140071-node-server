@@ -1,53 +1,88 @@
-// todo.js
+// routes/todo.js
 const express = require("express");
+const db = require("../database/db");
 const router = express.Router();
 
-// Data dummy
-let todos = [
-  { id: 1, task: "Belajar Node.js", },
-  { id: 2, task: "Membuat API", },
-];
+// Semua rute di bawah ini akan memerlukan token JWT yang valid
+// Middleware auth akan menangani ini di file app.js
+// Namun, jika Anda ingin melindunginya di sini, Anda bisa uncomment baris di bawah ini
+// const authMiddleware = require("../middleware/auth");
+// router.use(authMiddleware);
 
-// Endpoint untuk mendapatkan semua tugas
-router.get("/", (req, res) => {
-  res.json(todos);
+// GET semua todos
+router.get("/", async (req, res) => {
+  try {
+    const { search } = req.query;
+    let query = "SELECT * FROM todos WHERE user_id = ?"; // Filter berdasarkan user
+    const params = [req.user.id]; // Ambil user_id dari token
+
+    if (search) {
+      query += " AND task LIKE ?";
+      params.push(`%${search}%`);
+    }
+
+    const [rows] = await db.query(query, params);
+    res.json({ todos: rows });
+  } catch (err) {
+    console.error("Gagal mengambil data todo:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
 });
 
-// Endpoint untuk mendapatkan tugas berdasarkan ID
-router.get("/:id", (req, res) => {
-  const todo = todos.find((t) => t.id === parseInt(req.params.id));
-  if (!todo) return res.status(404).send("Tugas tidak ditemukan");
-  res.json(todo);
+// POST tambah todo baru
+router.post("/", async (req, res) => {
+  const { task } = req.body;
+  const user_id = req.user.id; // Ambil user_id dari token
+
+  if (!task) {
+    return res.status(400).json({ error: "Task is required" });
+  }
+
+  try {
+    const [result] = await db.query(
+      "INSERT INTO todos (task, completed, user_id) VALUES (?, ?, ?)",
+      [task, false, user_id]
+    );
+    res.status(201).json({ id: result.insertId, task, completed: false, user_id });
+  } catch (err) {
+    console.error("Gagal menambahkan todo:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
 });
 
-// Endpoint untuk menambahkan tugas baru
-router.post("/", (req, res) => {
-  const newTodo = {
-    id: todos.length + 1,
-    task: req.body.task,
-  };
-  todos.push(newTodo);
-  res.status(201).json(newTodo);
+// PUT update todo
+router.put("/:id", async (req, res) => {
+  const { id } = req.params;
+  const { task, completed } = req.body;
+  const user_id = req.user.id;
+
+  // ... (Logika pembuatan query tetap sama)
+  try {
+    const [result] = await db.query(query + " AND user_id = ?", [...params, user_id]);
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: "Todo not found or you don't have access" });
+    }
+    res.json({ message: "Todo updated successfully" });
+  } catch (err) {
+    console.error("Gagal memperbarui todo:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
 });
 
-// Endpoint untuk memperbarui tugas
-router.put("/:id", (req, res) => {
-  const todo = todos.find((t) => t.id === parseInt(req.params.id));
-  if (!todo) return res.status(404).send("Tugas tidak ditemukan");
-
-  todo.task = req.body.task;
-  res.json(todo);
-});
-
-// Endpoint untuk menghapus tugas
-router.delete("/:id", (req, res) => {
-  const todoIndex = todos.findIndex((t) => t.id === parseInt(req.params.id));
-  if (todoIndex === -1) return res.status(404).send("Tugas tidak ditemukan");
-
-  todos.splice(todoIndex, 1);
-  res.status(204).send();
+// DELETE todo berdasarkan ID
+router.delete("/:id", async (req, res) => {
+  const { id } = req.params;
+  const user_id = req.user.id;
+  try {
+    const [result] = await db.query("DELETE FROM todos WHERE id = ? AND user_id = ?", [id, user_id]);
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: "Todo not found or you don't have access" });
+    }
+    res.json({ message: "Todo deleted successfully" });
+  } catch (err) {
+    console.error("Gagal menghapus todo:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
 });
 
 module.exports = router;
-// Tambahkan ini untuk mengekspor data todos juga
-module.exports.todos = todos;
